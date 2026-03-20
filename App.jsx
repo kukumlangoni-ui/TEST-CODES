@@ -752,7 +752,7 @@ function HeroTitle(){
 const PROMPT_LAB_DATA = [
   {
     id:"p1",
-    category:"📱 Instagram Content",
+    category:"📱 Social Media",
     emoji:"📸",
     title:"Caption ya Instagram Inayovutia",
     prompt:"Niandikia caption ya Instagram kwa biashara ya [AINA YA BIASHARA] inayouza [BIDHAA]. Itumie emoji, hashtags 5 na CTA nzuri. Lugha: Kiswahili. Toni: friendly na professional.",
@@ -840,12 +840,14 @@ const PROMPT_LAB_DATA = [
 function PromptLabPage(){
   const [copied, setCopied] = useState(null);
   const [openGuide, setOpenGuide] = useState(null);
-  const [lightbox, setLightbox] = useState(null);
   const [filter, setFilter] = useState("All");
+  const { docs: liveDocs, loading } = useCollection("prompts");
 
-  const categories = ["All", "📱 Instagram Content", "🤖 AI Business", "📝 Content Creation", "💰 Affiliate Marketing", "🎓 Learning", "📧 Professional"];
+  const categories = ["All", "📱 Social Media", "🤖 AI Business", "📝 Content Creation", "💰 Affiliate Marketing", "🎓 Learning", "📧 Professional"];
 
-  const filtered = filter === "All" ? PROMPT_LAB_DATA : PROMPT_LAB_DATA.filter(p=>p.category===filter);
+  // Use live Firestore data if available, otherwise use fallback
+  const allPrompts = liveDocs.length > 0 ? liveDocs : PROMPT_LAB_DATA;
+  const filtered = filter === "All" ? allPrompts : allPrompts.filter(p=>p.category===filter);
 
   const copyPrompt = (id, text) => {
     navigator.clipboard.writeText(text).then(()=>{
@@ -986,10 +988,9 @@ function HomePage({goPage}){
     <div style={{marginBottom:16,borderRadius:20,border:"1px dashed rgba(245,166,35,.22)",background:"rgba(245,166,35,.06)",padding:"13px 18px",textAlign:"center",color:"rgba(255,255,255,.55)",fontSize:14}}>📢 Nafasi ya Google AdSense — matangazo kwa mapato ya STEA</div>
     <div style={{position:"relative",overflow:"hidden",borderRadius:30,border:"1px solid rgba(255,255,255,.07)",padding:"clamp(30px,5vw,62px) clamp(20px,4vw,52px) clamp(36px,5vw,54px)",background:"radial-gradient(circle at 18% 22%,rgba(245,166,35,.15),transparent 22%),radial-gradient(circle at 78% 28%,rgba(91,200,255,.17),transparent 24%),linear-gradient(135deg,#0d1019,#090b12,#0f1320)",boxShadow:"0 28px 80px rgba(0,0,0,.4)"}}>
       <StarCanvas/>
-      <RoboticHand/>
       <div style={{position:"relative",zIndex:2,maxWidth:680}}>
         <div style={{display:"inline-flex",alignItems:"center",gap:8,borderRadius:999,padding:"8px 16px",border:"1px solid rgba(245,166,35,.22)",background:"rgba(245,166,35,.08)",color:G,fontSize:11,fontWeight:900,textTransform:"uppercase",letterSpacing:".12em",marginBottom:18}}>🚀 STEA · Learn · Build · Grow · Tanzania</div>
-        <HeroTitle/>
+        <h1 style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:"clamp(46px,7vw,106px)",lineHeight:.88,letterSpacing:"-.07em",margin:"0 0 14px"}}><span style={{display:"block"}}>SwahiliTech</span><span style={{display:"block",background:"linear-gradient(135deg,#F5A623,#FFD17C)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Elite Academy</span></h1>
         <div style={{fontSize:"clamp(15px,2vw,28px)",fontWeight:800,letterSpacing:"-.03em",color:"rgba(255,255,255,.86)",margin:"0 0 6px"}}>Teknolojia kwa Kiswahili 🇹🇿</div>
         <TypedText/>
         <p style={{maxWidth:560,lineHeight:1.9,color:"rgba(255,255,255,.65)",fontSize:15,margin:0}}>STEA inaleta tech tips, updates, deals, electronics, websites za kijanja na kozi za kisasa kwa lugha rahisi ya Kiswahili — platform ya kwanza ya tech kwa Watanzania.</p>

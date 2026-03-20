@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   getFirebaseDb, collection, addDoc, updateDoc, deleteDoc,
   getDocs, doc, serverTimestamp, query, orderBy,
@@ -51,6 +51,52 @@ const Select = ({ children, ...props }) => (
     {children}
   </select>
 );
+
+// ── Image Upload Component ────────────────────────────
+function ImageUpload({ value, onChange, label="Thumbnail Image" }) {
+  const [preview, setPreview] = useState(value||"");
+  const [uploading, setUploading] = useState(false);
+  const inputRef = React.useRef(null);
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    if(file.size > 5 * 1024 * 1024) { alert("Picha lazima iwe chini ya 5MB"); return; }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      setPreview(dataUrl);
+      onChange(dataUrl);
+      setUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clear = () => { setPreview(""); onChange(""); if(inputRef.current) inputRef.current.value=""; };
+
+  return (
+    <Field label={label}>
+      <div style={{display:"grid",gap:10}}>
+        {preview ? (
+          <div style={{position:"relative",borderRadius:14,overflow:"hidden",border:"1px solid rgba(255,255,255,.1)"}}>
+            <img src={preview} alt="preview" style={{width:"100%",height:180,objectFit:"cover",display:"block"}}/>
+            <button onClick={clear} style={{position:"absolute",top:8,right:8,width:32,height:32,borderRadius:8,border:"none",background:"rgba(239,68,68,.85)",color:"#fff",cursor:"pointer",fontWeight:800,fontSize:14}}>✕</button>
+          </div>
+        ) : (
+          <div onClick={()=>inputRef.current?.click()} style={{height:120,borderRadius:14,border:"2px dashed rgba(255,255,255,.15)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,cursor:"pointer",background:"rgba(255,255,255,.03)",transition:"border-color .2s"}} onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(245,166,35,.4)"} onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(255,255,255,.15)"}>
+            <span style={{fontSize:28}}>{uploading?"⏳":"🖼️"}</span>
+            <span style={{fontSize:13,color:"rgba(255,255,255,.45)",fontWeight:700}}>{uploading?"Inapakia...":"Click kupakia picha (max 5MB)"}</span>
+          </div>
+        )}
+        <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}}/>
+        <div style={{textAlign:"center",fontSize:12,color:"rgba(255,255,255,.3)"}}>au weka URL moja kwa moja:</div>
+        <input value={preview.startsWith("data:") ? "" : preview} onChange={e=>{setPreview(e.target.value);onChange(e.target.value);}} placeholder="https://example.com/picha.jpg" style={{height:42,borderRadius:11,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",color:"#fff",padding:"0 14px",outline:"none",fontFamily:"inherit",fontSize:13}} onFocus={e=>e.target.style.borderColor="#F5A623"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.1)"}/>
+      </div>
+    </Field>
+  );
+}
+
 
 function Toast({ msg, type }) {
   if (!msg) return null;
@@ -175,9 +221,7 @@ function TipsManager() {
               <Input value={form.thumb} onChange={e=>setForm(f=>({...f,thumb:e.target.value}))} placeholder="📱"/>
             </Field>
           </div>
-          <Field label="Thumb Image URL (optional — badala ya emoji)">
-            <Input value={form.thumbImg||""} onChange={e=>setForm(f=>({...f,thumbImg:e.target.value}))} placeholder="https://example.com/picha.jpg"/>
-          </Field>
+          <ImageUpload value={form.thumbImg||""} onChange={v=>setForm(f=>({...f,thumbImg:v}))} label="Thumbnail Image (optional)"/>
 
           <Field label="Title *">
             <Input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="Andika title ya post hapa..."/>
@@ -336,8 +380,7 @@ function UpdatesManager() {
             </Field>
           </div>
           <Field label="Thumb Image URL (optional — badala ya emoji)">
-            <Input value={form.thumbImg||""} onChange={e=>setForm(f=>({...f,thumbImg:e.target.value}))} placeholder="https://example.com/image.jpg"/>
-          </Field>
+          <ImageUpload value={form.thumbImg||""} onChange={v=>setForm(f=>({...f,thumbImg:v}))} label="Thumbnail Image (optional)"/>
 
           <Field label="Title *">
             <Input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="Habari title..."/>
@@ -863,6 +906,120 @@ function WebsitesManager() {
 // ══════════════════════════════════════════════════════
 // USERS MANAGER
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// PROMPT LAB MANAGER
+// ══════════════════════════════════════════════════════
+function PromptLabManager() {
+  const [docs, setDocs] = useState([]);
+  const [form, setForm] = useState({
+    category:"📱 Social Media", emoji:"📸", title:"", prompt:"", tags:"",
+    guide:"", active:true,
+  });
+  const [editing, setEditing] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const db = getFirebaseDb();
+  const G = "#F5A623", G2 = "#FFD17C";
+  const toast_ = (msg, type="success") => { setToast({msg,type}); setTimeout(()=>setToast(null),3000); };
+
+  const CATEGORIES = ["📱 Social Media","🤖 AI Business","📝 Content Creation","💰 Affiliate Marketing","🎓 Learning","📧 Professional"];
+
+  useEffect(()=>{ loadDocs(); },[]);
+  const loadDocs = async () => {
+    if(!db) return;
+    const snap = await getDocs(query(collection(db,"prompts"), orderBy("createdAt","desc")));
+    setDocs(snap.docs.map(d=>({id:d.id,...d.data()})));
+  };
+
+  const save = async () => {
+    if(!form.title.trim()||!form.prompt.trim()){ toast_("Weka title na prompt kwanza","error"); return; }
+    setLoading(true);
+    try {
+      const data = {
+        ...form,
+        tags: form.tags.split(",").map(t=>t.trim()).filter(Boolean),
+        guide: form.guide.split("
+").map(g=>g.trim()).filter(Boolean),
+        createdAt: serverTimestamp(),
+      };
+      if(editing){ await updateDoc(doc(db,"prompts",editing), {...data,createdAt:undefined}); toast_("Imesahihishwa!"); }
+      else { await addDoc(collection(db,"prompts"), data); toast_("Prompt imewekwa live!"); }
+      setForm({ category:"📱 Social Media", emoji:"📸", title:"", prompt:"", tags:"", guide:"", active:true });
+      setEditing(null); loadDocs();
+    } catch(e){ toast_(e.message,"error"); }
+    setLoading(false);
+  };
+
+  const del = async (id) => {
+    if(!confirm("Futa prompt hii?")) return;
+    await deleteDoc(doc(db,"prompts",id)); loadDocs(); toast_("Imefutwa");
+  };
+
+  return (
+    <div>
+      {toast && <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,padding:"13px 18px",borderRadius:13,fontWeight:700,fontSize:14,background:toast.type==="error"?"rgba(239,68,68,.95)":"rgba(0,196,140,.95)",color:"#fff"}}>{toast.type==="error"?"❌":"✅"} {toast.msg}</div>}
+
+      {/* Form */}
+      <div style={{borderRadius:20,border:"1px solid rgba(255,255,255,.08)",background:"#141823",padding:24,marginBottom:28}}>
+        <h3 style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:20,margin:"0 0 20px"}}>{editing?"✏️ Hariri Prompt":"➕ Ongeza Prompt Mpya"}</h3>
+        <div style={{display:"grid",gap:16}}>
+
+          <div style={{display:"grid",gridTemplateColumns:"60px 1fr 1fr",gap:16}}>
+            <Field label="Emoji"><Input value={form.emoji} onChange={e=>setForm(f=>({...f,emoji:e.target.value}))} placeholder="📸"/></Field>
+            <Field label="Title *"><Input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="Caption ya Instagram..."/></Field>
+            <Field label="Category">
+              <select value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={{height:46,borderRadius:12,border:"1px solid rgba(255,255,255,.1)",background:"#1a1d2e",color:"#fff",padding:"0 14px",outline:"none",fontFamily:"inherit",fontSize:14,width:"100%",cursor:"pointer"}}>
+                {CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+              </select>
+            </Field>
+          </div>
+
+          <Field label="Prompt (ndiyo maudhui ya kukopisha) *">
+            <Textarea value={form.prompt} onChange={e=>setForm(f=>({...f,prompt:e.target.value}))} placeholder="Niandikia caption ya Instagram kwa biashara ya [AINA YA BIASHARA]..." style={{minHeight:140,fontFamily:"monospace",fontSize:13}}/>
+          </Field>
+
+          <Field label="Tags (tenganisha kwa comma)">
+            <Input value={form.tags} onChange={e=>setForm(f=>({...f,tags:e.target.value}))} placeholder="Instagram, Caption, Kiswahili"/>
+          </Field>
+
+          <Field label="Step-by-step Guide (kila hatua kwenye line mpya)">
+            <Textarea value={form.guide} onChange={e=>setForm(f=>({...f,guide:e.target.value}))} placeholder={"Badilisha [AINA YA BIASHARA] na biashara yako
+Nakili prompt → Weka kwenye ChatGPT
+Edit matokeo kulingana na brand yako"} style={{minHeight:120}}/>
+          </Field>
+
+          <div style={{display:"flex",gap:10}}>
+            <Btn onClick={save} disabled={loading}>{loading?"Inahifadhi...":editing?"💾 Hifadhi":"🚀 Weka Live"}</Btn>
+            {editing && <Btn onClick={()=>{setEditing(null);setForm({category:"📱 Social Media",emoji:"📸",title:"",prompt:"",tags:"",guide:"",active:true});}} color="rgba(255,255,255,.08)" textColor="#fff">✕ Acha</Btn>}
+          </div>
+        </div>
+      </div>
+
+      {/* List */}
+      <div style={{display:"grid",gap:10}}>
+        {docs.length===0 && <div style={{textAlign:"center",padding:40,color:"rgba(255,255,255,.35)"}}>Hakuna prompts bado. Ongeza ya kwanza! 👆</div>}
+        {docs.map(item=>(
+          <div key={item.id} style={{borderRadius:16,border:"1px solid rgba(255,255,255,.07)",background:"#1a1d2e",padding:"14px 18px",display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+            <div style={{fontSize:28,flexShrink:0}}>{item.emoji||"⚗️"}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:800,fontSize:14,marginBottom:2}}>{item.title}</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,.4)"}}>{item.category} · {(item.tags||[]).join(", ")}</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,.3)",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:400}}>{item.prompt?.slice(0,80)}...</div>
+            </div>
+            <div style={{display:"flex",gap:8,flexShrink:0}}>
+              <Btn onClick={()=>{setEditing(item.id);setForm({...item,tags:(item.tags||[]).join(", "),guide:(item.guide||[]).join("
+")});window.scrollTo({top:0,behavior:"smooth"});}} color="rgba(245,166,35,.12)" textColor="#F5A623" style={{padding:"8px 14px"}}>✏️</Btn>
+              <Btn onClick={()=>del(item.id)} color="rgba(239,68,68,.12)" textColor="#fca5a5" style={{padding:"8px 14px"}}>🗑️</Btn>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
 function UsersManager() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -999,6 +1156,7 @@ export default function AdminPanel({ user, onBack }) {
     { id:"courses",  icon:"🎓", label:"Courses" },
     { id:"products", icon:"🛒", label:"Duka" },
     { id:"websites", icon:"🌐", label:"Websites" },
+    { id:"lab",      icon:"⚗️", label:"Prompt Lab" },
     { id:"users",    icon:"👥", label:"Users" },
   ];
 
@@ -1084,6 +1242,7 @@ export default function AdminPanel({ user, onBack }) {
         {section==="courses" && <><h2 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:28, margin:"0 0 24px" }}>🎓 Manage <span style={{color:G}}>Courses</span></h2><CoursesManager/></>}
         {section==="products" && <><h2 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:28, margin:"0 0 24px" }}>🛒 Manage <span style={{color:G}}>Duka Products</span></h2><ProductsManager/></>}
         {section==="websites" && <><h2 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:28, margin:"0 0 24px" }}>🌐 Manage <span style={{color:G}}>Websites</span></h2><WebsitesManager/></>}
+        {section==="lab"     && <><h2 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:28, margin:"0 0 24px" }}>⚗️ Manage <span style={{color:G}}>Prompt Lab</span></h2><PromptLabManager/></>}
         {section==="users"   && <><h2 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:28, margin:"0 0 24px" }}>👥 Manage <span style={{color:G}}>Users</span></h2><UsersManager/></>}
       </div>
 
