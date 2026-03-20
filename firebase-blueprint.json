@@ -1,0 +1,113 @@
+{
+  "entities": {
+    "tip": {
+      "title": "Tech Tip",
+      "description": "A short tech tip for the community",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "category", "createdAt"]
+    },
+    "update": {
+      "title": "STEA Update",
+      "description": "Latest news and updates from STEA",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "image": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "createdAt"]
+    },
+    "deal": {
+      "title": "Tech Deal",
+      "description": "A curated tech deal or discount",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "string" },
+        "url": { "type": "string" },
+        "image": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "url", "createdAt"]
+    },
+    "course": {
+      "title": "Course",
+      "description": "A course offered by STEA",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "duration": { "type": "string" },
+        "level": { "type": "string" },
+        "price": { "type": "string" },
+        "image": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "description", "createdAt"]
+    },
+    "user": {
+      "title": "User",
+      "description": "A registered user of the STEA platform",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "lastLogin": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "product": {
+      "title": "Product",
+      "description": "An electronic product in the Duka",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "string" },
+        "oldPrice": { "type": "string" },
+        "icon": { "type": "string" },
+        "badge": { "type": "string" },
+        "url": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price", "url", "createdAt"]
+    },
+    "website": {
+      "title": "Website",
+      "description": "A curated website or tool",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "description": { "type": "string" },
+        "icon": { "type": "string" },
+        "bg": { "type": "string" },
+        "meta": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "url", "createdAt"]
+    }
+  },
+  "firestore": {
+    "tips": { "schema": "tip", "description": "Collection of tech tips" },
+    "updates": { "schema": "update", "description": "Collection of STEA updates" },
+    "deals": { "schema": "deal", "description": "Collection of tech deals" },
+    "courses": { "schema": "course", "description": "Collection of courses" },
+    "users": { "schema": "user", "description": "Collection of registered users" },
+    "products": { "schema": "product", "description": "Collection of products in Duka" },
+    "websites": { "schema": "website", "description": "Collection of curated websites" }
+  }
+}
